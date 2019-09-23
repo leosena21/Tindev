@@ -1,46 +1,88 @@
-import React from 'react';
+import React, {useEffect, useState} from 'react';
+import AsyncStirage from '@react-native-community/async-storage';
 import {View, Text, SafeAreaView, Image, StyleSheet, TouchableOpacity} from 'react-native';
+
+import api from '../services/api';
 
 import logo from '../assets/logo.png';
 import dislike from '../assets/dislike.png';
 import like from '../assets/like.png';
+import AsyncStorage from '@react-native-community/async-storage';
 
-export default function Main() {
+export default function Main({ navigation }) {
+
+  const id = navigation.getParam('user');
+  const [users, setUsers] = useState([]);
+
+  console.log(id);
+
+  useEffect(() => {
+      async function loadUsers(){
+          const response = await api.get('/devs', {
+              headers: {
+                  user: id,
+              }
+          })
+          setUsers(response.data);
+      }
+      loadUsers();
+  }, [id])
+
+  async function handleLike(){
+
+    const [user, ...rest] = users;
+
+    await api.post(`devs/${user._id}/likes`, null, {
+        headers: {user: id},
+    })
+
+    setUsers(rest);
+  }
+
+  async function handleDislike(){
+    const [user, ...rest] = users;
+
+    await api.post(`devs/${user._id}/dislikes`, null, {
+        headers: {user: id},
+    })
+
+    setUsers(rest);
+  }
+
+  async function handleLogout(){
+    await AsyncStorage.clear();
+
+    navigation.navigate('Login');
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      <Image style = {styles.logo} source={logo} />
+
+      <TouchableOpacity onPress={handleLogout}>
+        <Image style = {styles.logo} source={logo} />
+      </TouchableOpacity>
 
       <View style = {styles.cardsContainer}>
-        <View style = {[styles.cards, {zIndex: 3}]}>
-          <Image style={styles.avatar} source={ {uri: 'https://avatars0.githubusercontent.com/u/30130869?v=4' } }/>
-          <View style={styles.footer}>
-            <Text style={styles.name}>Leonardo Sena</Text>
-            <Text style={styles.bio} numberOfLines={3}>Estutande de engenharia de computacao</Text>
-          </View>
-        </View>
-
-        <View style = {[styles.cards, {zIndex: 2}]}>
-          <Image style={styles.avatar} source={ {uri: 'https://avatars0.githubusercontent.com/u/30130869?v=4' } }/>
-          <View style={styles.footer}>
-            <Text style={styles.name}>Leonardo Sena</Text>
-            <Text style={styles.bio} numberOfLines={3}>Estutande de engenharia de computacao</Text>
-          </View>
-        </View>
-
-        <View style = {[styles.cards, {zIndex: 1}]}>
-          <Image style={styles.avatar} source={ {uri: 'https://avatars0.githubusercontent.com/u/30130869?v=4' } }/>
-          <View style={styles.footer}>
-            <Text style={styles.name}>Leonardo Sena</Text>
-            <Text style={styles.bio} numberOfLines={3}>Estutande de engenharia de computacao</Text>
-          </View>
-        </View>
+        {users.length===0
+        ? <Text style={styles.empty}>Acabou:(</Text>
+        : (
+          users.map((user, index) => (        
+            <View key={user._id} style = {[styles.cards, {zIndex: users.length - index}]}>
+              <Image style={styles.avatar} source={ {uri: user.avatar } }/>
+              <View style={styles.footer}>
+                <Text style={styles.name}>{user.name}</Text>
+                <Text style={styles.bio} numberOfLines={3}>{user.bio}</Text>
+              </View>
+            </View>
+            )) 
+        )}
       </View>
       
       <View style={styles.buttonsContainer}>
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity style={styles.button} onPress={handleDislike}>
           <Image source={dislike}/>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity style={styles.button} onPress={handleLike}>
           <Image source={like}/>
         </TouchableOpacity>
       </View>
@@ -55,7 +97,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between'
   },
-
+  
   cardsContainer:{
     flex: 1, 
     alignSelf: 'stretch',
@@ -75,24 +117,24 @@ const styles = StyleSheet.create({
     right: 0, 
     bottom: 0,
   },
-
+  
   avatar:{
     flex:1, 
     height: 300,
   },
-
+  
   footer: {
     backgroundColor: '#FFF',
     paddingHorizontal: 20,
     paddingVertical: 15,
   },
-
+  
   name: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
   },
-
+  
   bio: {
     fontSize: 14,
     color: '#999',
@@ -103,7 +145,14 @@ const styles = StyleSheet.create({
   logo: {
     marginTop:30,
   },
-
+  
+    empty: {
+      alignSelf: 'center',
+      color: '#999',
+      fontSize: 24,
+      fontWeight: 'bold',
+    },
+  
   buttonsContainer: {
     flexDirection: 'row',
     marginBottom: 30,
